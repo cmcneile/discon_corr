@@ -249,7 +249,7 @@ class dis_corr:
          print ("Can not find " , fname)
          sys.exit(1)
 
-      print ("SINFO Norm = (taste =4 ) * (spatial volume) * (charge = 1/9)   "  )
+      print ("SINFO Norm = (taste =4 ) * (spatial volume) * (charge = 9 (3^2))   "  )
       print ("SINFO spatial volume = " , Vspace)
       print ("SINFO T = " , self.tend)
 
@@ -727,6 +727,249 @@ class dis_corr_isospin:
      for t in range(0,self.tend):
            for iss in range(0,self.ns) :
                sum.all_corr[t][iss] = self.loop_us[iss].av_corr[t]
+
+     print ("Saving the correlators to the file " , fname )
+
+     f = open(fname, "wb")
+     pickle.dump(sum, f)
+     f.close()
+
+
+
+
+
+####
+
+class dis_corr_isospin_3av:
+   """
+   Class to create disconnected correlators from loop operators with an estimate
+   of isospin breaking.  Use all three components.
+
+   """
+
+   def __init__(self,nt,ns,tend, tag_1):
+       self.ns = 0
+       self.nt = nt
+       self.tend = tend
+       self.tag_1 = tag_1 
+       self.loop_1_us = [] 
+       self.loop_1_ud = [] 
+
+       self.loop_2_us = [] 
+       self.loop_2_ud = [] 
+
+       self.loop_3_us = [] 
+       self.loop_3_ud = [] 
+
+
+   def load(self, xx_1_us, xx_1_ud, xx_2_us, xx_2_ud, xx_3_us, xx_3_ud):
+        """
+          Load in the loops 
+        """
+        self.loop_1_us.append(xx_1_us)
+        self.loop_1_ud.append(xx_1_ud)
+
+        self.loop_2_us.append(xx_2_us)
+        self.loop_2_ud.append(xx_2_ud)
+
+        self.loop_3_us.append(xx_3_us)
+        self.loop_3_ud.append(xx_3_ud)
+
+        self.ns = self.ns + 1
+
+   
+   def compute(self, mass_us):
+       """
+          Use the loops to compute the disconnected correlators.
+
+       """
+       self.compute_full_discorr(mass_us) 
+       self.compute_discorr_err()
+
+   def compute_unbias(self, mass_us):
+       """
+          Use the loops to compute the disconnected correlators.
+          (Remove the single noise sources)
+
+       """
+       self.compute_full_discorr_unbias(mass_us) 
+       self.compute_discorr_err()
+
+
+   def compute_off(self, mass_us):
+       """
+          Use the loops to compute the disconnected correlators.
+          Off diagonal comtribution
+       """
+       self.compute_full_discorr_off(mass_us) 
+       self.compute_discorr_err()
+
+
+   def compute_full_discorr(self,  mass_ud):
+       """
+          Compute the correlators on each comfiguration and then average
+       """
+
+       self.fdis_corr = np.zeros( (self.tend)  )
+
+       for iss in range(0, self.ns) :
+         self.loop_1_us[iss].compute_corr_isospin(self.tend, self.loop_1_ud[iss], mass_ud) 
+         self.loop_2_us[iss].compute_corr_isospin(self.tend, self.loop_2_ud[iss], mass_ud) 
+         self.loop_3_us[iss].compute_corr_isospin(self.tend, self.loop_3_ud[iss], mass_ud) 
+
+         for t in range(0,self.tend):
+              self.fdis_corr[t] = self.fdis_corr[t] + (self.loop_1_us[iss].av_corr[t] + self.loop_2_us[iss].av_corr[t] + self.loop_3_us[iss].av_corr[t]) / 3.0
+  
+       for t in range(0,self.tend):
+              self.fdis_corr[t] /= self.ns 
+
+       print ( "Computed full ISOSPIN disconnected correlators for " , self.tag_1, " delta_mass = " , mass_ud )
+
+
+
+   def compute_full_discorr_unbias(self,  mass_ud):
+       """
+          Compute the correlators on each comfiguration and then average
+       """
+
+       self.fdis_corr = np.zeros( (self.tend)  )
+
+       for iss in range(0, self.ns) :
+         self.loop_1_us[iss].compute_corr_isospin_unbias(self.tend, self.loop_1_ud[iss], mass_ud) 
+         self.loop_2_us[iss].compute_corr_isospin_unbias(self.tend, self.loop_2_ud[iss], mass_ud) 
+         self.loop_3_us[iss].compute_corr_isospin_unbias(self.tend, self.loop_3_ud[iss], mass_ud) 
+
+         for t in range(0,self.tend):
+              self.fdis_corr[t] = self.fdis_corr[t] + (self.loop_1_us[iss].av_corr[t] + self.loop_2_us[iss].av_corr[t] + self.loop_3_us[iss].av_corr[t]) / 3.0 
+  
+       for t in range(0,self.tend):
+              self.fdis_corr[t] /= self.ns 
+
+       print ( "Computed full (unbias) ISOSPIN disconnected correlators for " , self.tag_1, " delta_mass = " , mass_ud )
+
+
+
+   def compute_full_discorr_off(self,  mass_ud):
+       """
+          Compute the correlators on each comfiguration and then average
+          Off diagonal contribution.
+       """
+
+       self.fdis_corr = np.zeros( (self.tend)  )
+
+       for iss in range(0, self.ns) :
+         self.loop_1_us[iss].compute_corr_isospin_off(self.tend, self.loop_1_ud[iss], mass_ud) 
+         self.loop_2_us[iss].compute_corr_isospin_off(self.tend, self.loop_2_ud[iss], mass_ud) 
+         self.loop_3_us[iss].compute_corr_isospin_off(self.tend, self.loop_3_ud[iss], mass_ud) 
+
+         for t in range(0,self.tend):
+              self.fdis_corr[t] = self.fdis_corr[t] + ( self.loop_1_us[iss].av_corr[t] +  self.loop_2_us[iss].av_corr[t] +  self.loop_3_us[iss].av_corr[t] ) / 3.0
+  
+       for t in range(0,self.tend):
+              self.fdis_corr[t] /= self.ns 
+
+       print ( "Computed full ISOSPIN disconnected correlators for " , self.tag_1, " delta_mass = " , mass_ud )
+
+
+
+   def compute_discorr_err(self):
+
+       self.dis_corr_err  = np.zeros( (self.tend)  )
+       tmp = np.zeros( (self.ns)  )
+       self.jcorr = np.zeros( (self.nt, self.ns)  )
+
+       for t in range(0,self.tend):
+           for i_ss in range(0,self.ns) :
+              tmp[i_ss] = 0.0 
+
+              for j_ss in range(0,self.ns) :
+                if i_ss != j_ss :
+                   tmp[i_ss] += (self.loop_1_us[j_ss].av_corr[t] + self.loop_2_us[j_ss].av_corr[t] + self.loop_3_us[j_ss].av_corr[t]) / 3.0
+
+              tmp[i_ss] /=  (self.ns -1 )
+              self.jcorr[t][i_ss] = tmp[i_ss]
+
+           self.dis_corr_err[t] = jackknife.jackknife(tmp,self.ns )
+
+       print ("Computed jackknife isospin disconnected correlators for " , self.tag_1 )
+
+
+   def write_discorr(self):
+      """
+      Write out the disconnected correlators with errors to standard output
+      """
+
+      print ("Disconnected correlators for " , self.tag_1 )
+      for t in range(0,self.tend):
+          print ("SINFO isospin", t , "%e" % self.fdis_corr[t]   , "%e" % self.dis_corr_err[t] )
+
+
+   def estimate_amu(self, fname, Vspace):
+      """
+      Estimate the a_\mu^{HVP (LO) DISC} using the UKQCD/RBC method  (1610.04603).
+      """
+
+      print ("Estimate a_mu^{HVP LO}  for " , self.tag_1 )
+
+      print ("Reloading the coefficients from " , fname  )
+      if not os.path.isfile(fname) :
+         print ("Can not find " , fname )
+         sys.exit(1)
+
+      print ("SINFO Norm = (taste =4 ) * (spatial volume) * (charge = 1/9)   " , )
+      print ("SINFO spatial volume = " , Vspace )
+      print ("SINFO T = " , self.tend)
+
+      norm = Vspace * 4 * 9  
+
+      cc = np.load(fname) 
+      t = 0 
+      for c in cc: 
+         print ("w(" , t , ") = " , c )
+         t += 1 
+
+      if len(cc) < self.tend :
+         print ("Not enough coefficients" )
+         sys.exit(1)
+
+      ans = 0.0 
+      for t in range(0,self.tend):
+         ans +=  self.fdis_corr[t] * cc[t]          
+
+      ans /= norm   
+
+
+      #  jackknife analysis
+      j_amu = np.zeros( (self.ns)  )
+      for i_ss in range(0,self.ns) :
+         j_amu[i_ss] = 0.0 
+         for t in range(0,self.tend):
+            for j_ss in range(0,self.ns) :
+                if i_ss != j_ss :
+                   j_amu[i_ss] += (self.loop_1_us[j_ss].av_corr[t] + self.loop_2_us[j_ss].av_corr[t] + self.loop_3_us[j_ss].av_corr[t] ) / 3.0     * cc[t]
+
+         j_amu[i_ss]  /= (self.ns - 1)
+
+      ans_err = jackknife.jackknife(j_amu,self.ns )
+      ans_err /= norm 
+
+      print ("SINFO a_mu^{DIS HVP LO}" ,  "%e" % ans , " +/- %e " % ans_err  )
+
+
+
+
+   def save_corr_to_disk(self,fname):
+     """
+       Save the correlators to disk for each configuration.
+
+     """
+     sum = corrutil.corr_sum(self.nt, self.ns, self.tend, self.tag_1)
+     sum.loadin(self.fdis_corr, self.dis_corr_err)
+
+     # write the correlators for each configuration
+     for t in range(0,self.tend):
+           for iss in range(0,self.ns) :
+               sum.all_corr[t][iss] = (self.loop_1_us[iss].av_corr[t] + self.loop_2_us[iss].av_corr[t] + self.loop_3_us[iss].av_corr[t] ) / 3.0
 
      print ("Saving the correlators to the file " , fname )
 

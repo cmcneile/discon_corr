@@ -135,7 +135,7 @@ class corr_sum:
 #       for tt in tmp:
 #          print ("debug " , tt)
 
-
+       return corr
 
 
    def plot_signalTOnoise(self,l_fmt,  l_label,   t_off=0 ):
@@ -440,3 +440,4 @@ class corr_sum:
            hf.create_dataset('lattice_number', (len(asciiList),1),'S10', asciiList)
 
        print ("Correlators exported to the file " , fname)
+
